@@ -133,7 +133,10 @@ class OutputResolver(object):
         self.cache.setdefault(tx_hash, {}).setdefault(output["index"], r)
 
     def get_cache_stats(self):
-        return f"functools.lru_cache: {self.get_output.cache_info()}, LRUCache: {len(self.cache)} items"
+        return (
+            f"functools.lru_cache: {self.get_output.cache_info()}, "
+            f"LRUCache: {len(self.cache)} items"
+        )
 
 
 def get_last_block_yesterday(
@@ -599,7 +602,7 @@ def create_parser():
         dest="batch_size",
         type=int,
         default=100,
-        help="number of blocks to export at a time " "(default 100)",
+        help="number of blocks to export at a time (default: 100)",
     )
     parser.add_argument(
         "-d",
@@ -608,7 +611,7 @@ def create_parser():
         nargs="+",
         default=["localhost"],
         metavar="DB_NODE",
-        help='list of Cassandra nodes; default "localhost")',
+        help="list of Cassandra nodes; default: ['localhost'])",
     )
     parser.add_argument(
         "-k",
@@ -624,7 +627,7 @@ def create_parser():
         type=int,
         default=None,
         help="enforces a specific start block "
-             "(default mode: continue from last ingested block)",
+        "(default mode: continue from last ingested block)",
     )
 
     parser.add_argument(
@@ -655,7 +658,7 @@ def create_parser():
         dest="prev_day",
         action="store_true",
         help="only ingest blocks up to the previous day, since currency "
-             "exchange rates might not be available for the current day",
+        "exchange rates might not be available for the current day",
     )
     return parser
 
