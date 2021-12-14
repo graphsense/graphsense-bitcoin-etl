@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+from cashaddress.convert import to_legacy_address
 import time
 from argparse import ArgumentParser
 from collections import OrderedDict
@@ -455,7 +455,7 @@ def enrich_txs(txs: Iterable, resolver: OutputResolver) -> None:
                     "bitcoincash:"
                 ):
                     o["addresses"] = [
-                        a.replace("bitcoincash:", "") for a in o["addresses"]
+                        to_legacy_address(a) for a in o["addresses"]
                     ]
 
                 if o["addresses"][0] and o["addresses"][0].startswith(

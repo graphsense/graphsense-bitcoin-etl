@@ -7,3 +7,4 @@ git+https://github.com/graphsense/bitcoin-etl@1.5.1_hotfix_5#egg=bitcoin-etl
 chainside-btcpy==0.6.5
 base58==2.1.1
 pytest==6.2.5
+cashaddress==1.0.5
