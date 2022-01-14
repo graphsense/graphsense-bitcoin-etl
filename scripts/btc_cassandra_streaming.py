@@ -165,12 +165,13 @@ def get_last_block_yesterday(
 
 
 def get_last_ingested_block(session: Session) -> Optional[int]:
+    """Return last ingested block ID from block_transactions table."""
+
     cql_str = (
-        f"SELECT block_id_group FROM block_transactions PER PARTITION LIMIT 1"
+        "SELECT block_id_group FROM block_transactions PER PARTITION LIMIT 1"
     )
-    simple_stmt = SimpleStatement(cql_str, fetch_size=None)
-    result = session.execute(simple_stmt)
-    groups = [row.block_id_group for row in result.current_rows]
+    simple_stmt = SimpleStatement(cql_str, fetch_size=1000)
+    groups = [res[0] for res in session.execute(simple_stmt)]
 
     if len(groups) == 0:
         return None
@@ -676,6 +677,7 @@ def main() -> None:
 
     last_synced_block = btc_adapter.get_current_block_number()
     last_ingested_block = get_last_ingested_block(session)
+    print_block_info(last_synced_block, last_ingested_block)
 
     start_block = 0 if last_ingested_block is None else last_ingested_block + 1
     if args.start_block is not None:
@@ -690,8 +692,6 @@ def main() -> None:
             f"No blocks to ingest since start block {start_block} > endblock {end_block}"
         )
         raise SystemExit(0)
-
-    print_block_info(last_synced_block, last_ingested_block)
 
     if args.info:
         cluster.shutdown()
