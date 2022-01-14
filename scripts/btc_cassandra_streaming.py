@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from cashaddress.convert import to_legacy_address
-import time
+
 from argparse import ArgumentParser
 from collections import OrderedDict
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from functools import lru_cache
 from operator import itemgetter
+import time
 from typing import Optional, Sequence
 
 from bitcoinetl.enumeration.chain import Chain
@@ -20,6 +20,7 @@ from blockchainetl.jobs.exporters.in_memory_item_exporter import (
 from blockchainetl.thread_local_proxy import ThreadLocalProxy
 from btcpy.structs.address import P2pkhAddress
 from btcpy.structs.script import ScriptBuilder
+from cashaddress.convert import to_legacy_address
 from cassandra.cluster import (
     Cluster,
     Session,
@@ -400,7 +401,8 @@ def parse_script(s: str):
             ], script.type
         except:
             raise ValueError(
-                f"ScriptParseError: cannot parse pubkey from {s} (of type {script.type})"
+                f"ScriptParseError: cannot parse pubkey from {s}"
+                f" (of type {script.type})"
             )
 
     if script.type == "p2pkh":
@@ -440,11 +442,11 @@ def enrich_txs(txs: Iterable, resolver: OutputResolver) -> None:
                         i["addresses"] = resolved["addresses"]
                         i["type"] = resolved["type"]
                         i["value"] = resolved["value"]
-                    except ValueError as e:
+                    except ValueError as exception:
                         print(
-                            f'tx input cannot be resolved for {i["addresses"]}'
+                            f"tx input cannot be resolved for {i['addresses']}"
                         )
-                        print(e)
+                        print(exception)
         tx["input_value"] = sum(
             [i["value"] for i in tx["inputs"] if i["value"] is not None]
         )
@@ -470,11 +472,12 @@ def enrich_txs(txs: Iterable, resolver: OutputResolver) -> None:
                             address_list if address_list else o["addresses"]
                         )
                         o["type"] = scripttype
-                    except ValueError as e:
+                    except ValueError as exception:
                         print(
-                            f"{e}: cannot parse output script  {o}  from tx {tx.get('hash')}"
+                            f"{exception}: cannot parse output script {o}"
+                            f" from tx {tx.get('hash')}"
                         )
-                        raise SystemExit(0)
+                        raise SystemExit(0) from exception
                 resolver.add_output(tx["hash"], o)
 
 
@@ -558,7 +561,7 @@ def is_coinjoin(tx) -> bool:
     if participant_count > len(input_addresses):
         return False
 
-    # The most common output value should appear exactly 'participantCount' times
+    # The most common output value should appear 'participantCount' times;
     # if multiple values are tied for 'most common', the lowest value is used
     output_values = {}
     for o in tx["outputs"]:
