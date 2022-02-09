@@ -477,7 +477,7 @@ def enrich_txs(txs: Iterable, resolver: OutputResolver) -> None:
                             f"{exception}: cannot parse output script {o}"
                             f" from tx {tx.get('hash')}"
                         )
-                        raise SystemExit(0) from exception
+
                 resolver.add_output(tx["hash"], o)
 
 
