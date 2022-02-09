@@ -717,6 +717,19 @@ def main() -> None:
         ]
     }
 
+    cql_str = """INSERT INTO configuration
+                  (id, block_bucket_size, tx_prefix_length, tx_bucket_size)
+                  VALUES (%s, %s, %s, %s)"""
+    session.execute(
+        cql_str,
+        (
+            args.keyspace,
+            int(BLOCK_BUCKET_SIZE),
+            int(TX_HASH_PREFIX_LENGTH),
+            TX_BUCKET_SIZE,
+        ),
+    )
+
     for block_id in range(start_block, end_block + 1, args.batch_size):
         current_end_block = min(end_block, block_id + args.batch_size - 1)
 
@@ -758,19 +771,6 @@ def main() -> None:
 
     print(
         f"[{datetime.now()}] Processed block range {start_block:,}:{end_block:,}"
-    )
-
-    cql_str = """INSERT INTO configuration
-                 (id, block_bucket_size, tx_prefix_length, tx_bucket_size)
-                 VALUES (%s, %s, %s, %s)"""
-    session.execute(
-        cql_str,
-        (
-            args.keyspace,
-            int(BLOCK_BUCKET_SIZE),
-            int(TX_HASH_PREFIX_LENGTH),
-            TX_BUCKET_SIZE,
-        ),
     )
 
     last_block = blocks[-1]
