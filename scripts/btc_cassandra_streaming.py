@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import time
 from argparse import ArgumentParser
 from collections import OrderedDict
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from functools import lru_cache
 from operator import itemgetter
+import time
 from typing import Optional, Sequence
 
 from bitcoinetl.enumeration.chain import Chain
@@ -20,6 +20,7 @@ from blockchainetl.jobs.exporters.in_memory_item_exporter import (
 from blockchainetl.thread_local_proxy import ThreadLocalProxy
 from btcpy.structs.address import P2pkhAddress
 from btcpy.structs.script import ScriptBuilder
+from cashaddress.convert import to_legacy_address
 from cassandra.cluster import (
     Cluster,
     Session,
@@ -32,7 +33,7 @@ from cassandra.query import (
 
 TX_HASH_PREFIX_LENGTH = 5
 TX_BUCKET_SIZE = 25_000
-BLOCK_BUCKET_SIZE = 100_000
+BLOCK_BUCKET_SIZE = 100
 
 
 class BtcStreamerAdapter:
@@ -133,7 +134,10 @@ class OutputResolver(object):
         self.cache.setdefault(tx_hash, {}).setdefault(output["index"], r)
 
     def get_cache_stats(self):
-        return f"functools.lru_cache: {self.get_output.cache_info()}, LRUCache: {len(self.cache)} items"
+        return (
+            f"functools.lru_cache: {self.get_output.cache_info()}, "
+            f"LRUCache: {len(self.cache)} items"
+        )
 
 
 def get_last_block_yesterday(
@@ -162,12 +166,13 @@ def get_last_block_yesterday(
 
 
 def get_last_ingested_block(session: Session) -> Optional[int]:
+    """Return last ingested block ID from block_transactions table."""
+
     cql_str = (
-        f"SELECT block_id_group FROM block_transactions PER PARTITION LIMIT 1"
+        "SELECT block_id_group FROM block_transactions PER PARTITION LIMIT 1"
     )
-    simple_stmt = SimpleStatement(cql_str, fetch_size=None)
-    result = session.execute(simple_stmt)
-    groups = [row.block_id_group for row in result.current_rows]
+    simple_stmt = SimpleStatement(cql_str, fetch_size=1000)
+    groups = [res[0] for res in session.execute(simple_stmt)]
 
     if len(groups) == 0:
         return None
@@ -396,7 +401,8 @@ def parse_script(s: str):
             ], script.type
         except:
             raise ValueError(
-                f"ScriptParseError: cannot parse pubkey from {s} (of type {script.type})"
+                f"ScriptParseError: cannot parse pubkey from {s}"
+                f" (of type {script.type})"
             )
 
     if script.type == "p2pkh":
@@ -436,11 +442,11 @@ def enrich_txs(txs: Iterable, resolver: OutputResolver) -> None:
                         i["addresses"] = resolved["addresses"]
                         i["type"] = resolved["type"]
                         i["value"] = resolved["value"]
-                    except ValueError as e:
+                    except ValueError as exception:
                         print(
-                            f'tx input cannot be resolved for {i["addresses"]}'
+                            f"tx input cannot be resolved for {i['addresses']}"
                         )
-                        print(e)
+                        print(exception)
         tx["input_value"] = sum(
             [i["value"] for i in tx["inputs"] if i["value"] is not None]
         )
@@ -452,7 +458,7 @@ def enrich_txs(txs: Iterable, resolver: OutputResolver) -> None:
                     "bitcoincash:"
                 ):
                     o["addresses"] = [
-                        a.replace("bitcoincash:", "") for a in o["addresses"]
+                        to_legacy_address(a) for a in o["addresses"]
                     ]
 
                 if o["addresses"][0] and o["addresses"][0].startswith(
@@ -466,11 +472,12 @@ def enrich_txs(txs: Iterable, resolver: OutputResolver) -> None:
                             address_list if address_list else o["addresses"]
                         )
                         o["type"] = scripttype
-                    except ValueError as e:
+                    except ValueError as exception:
                         print(
-                            f"{e}: cannot parse output script  {o}  from tx {tx.get('hash')}"
+                            f"{exception}: cannot parse output script {o}"
+                            f" from tx {tx.get('hash')}"
                         )
-                        raise SystemExit(0)
+
                 resolver.add_output(tx["hash"], o)
 
 
@@ -554,7 +561,7 @@ def is_coinjoin(tx) -> bool:
     if participant_count > len(input_addresses):
         return False
 
-    # The most common output value should appear exactly 'participantCount' times
+    # The most common output value should appear 'participantCount' times;
     # if multiple values are tied for 'most common', the lowest value is used
     output_values = {}
     for o in tx["outputs"]:
@@ -599,7 +606,7 @@ def create_parser():
         dest="batch_size",
         type=int,
         default=100,
-        help="number of blocks to export at a time " "(default 100)",
+        help="number of blocks to export at a time (default: 100)",
     )
     parser.add_argument(
         "-d",
@@ -608,7 +615,7 @@ def create_parser():
         nargs="+",
         default=["localhost"],
         metavar="DB_NODE",
-        help='list of Cassandra nodes; default "localhost")',
+        help="list of Cassandra nodes; default: ['localhost'])",
     )
     parser.add_argument(
         "-k",
@@ -624,7 +631,7 @@ def create_parser():
         type=int,
         default=None,
         help="enforces a specific start block "
-             "(default mode: continue from last ingested block)",
+        "(default mode: continue from last ingested block)",
     )
 
     parser.add_argument(
@@ -655,7 +662,7 @@ def create_parser():
         dest="prev_day",
         action="store_true",
         help="only ingest blocks up to the previous day, since currency "
-             "exchange rates might not be available for the current day",
+        "exchange rates might not be available for the current day",
     )
     return parser
 
@@ -673,6 +680,7 @@ def main() -> None:
 
     last_synced_block = btc_adapter.get_current_block_number()
     last_ingested_block = get_last_ingested_block(session)
+    print_block_info(last_synced_block, last_ingested_block)
 
     start_block = 0 if last_ingested_block is None else last_ingested_block + 1
     if args.start_block is not None:
@@ -687,8 +695,6 @@ def main() -> None:
             f"No blocks to ingest since start block {start_block} > endblock {end_block}"
         )
         raise SystemExit(0)
-
-    print_block_info(last_synced_block, last_ingested_block)
 
     if args.info:
         cluster.shutdown()
@@ -710,6 +716,19 @@ def main() -> None:
             "block_transactions",
         ]
     }
+
+    cql_str = """INSERT INTO configuration
+                  (id, block_bucket_size, tx_prefix_length, tx_bucket_size)
+                  VALUES (%s, %s, %s, %s)"""
+    session.execute(
+        cql_str,
+        (
+            args.keyspace,
+            int(BLOCK_BUCKET_SIZE),
+            int(TX_HASH_PREFIX_LENGTH),
+            TX_BUCKET_SIZE,
+        ),
+    )
 
     for block_id in range(start_block, end_block + 1, args.batch_size):
         current_end_block = min(end_block, block_id + args.batch_size - 1)
@@ -752,19 +771,6 @@ def main() -> None:
 
     print(
         f"[{datetime.now()}] Processed block range {start_block:,}:{end_block:,}"
-    )
-
-    cql_str = """INSERT INTO configuration
-                 (id, block_bucket_size, tx_prefix_length, tx_bucket_size)
-                 VALUES (%s, %s, %s, %s)"""
-    session.execute(
-        cql_str,
-        (
-            args.keyspace,
-            int(BLOCK_BUCKET_SIZE),
-            int(TX_HASH_PREFIX_LENGTH),
-            TX_BUCKET_SIZE,
-        ),
     )
 
     last_block = blocks[-1]

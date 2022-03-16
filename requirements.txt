@@ -1,9 +1,10 @@
 cassandra-driver==3.25.0
-requests==2.20
-pandas==1.2.4
-numpy==1.20.3
-# bitcoin-etl==1.5.1
+requests==2.20.0
+pandas==1.3.5
+numpy==1.21.5
+#bitcoin-etl==1.5.2
 git+https://github.com/graphsense/bitcoin-etl@1.5.1_hotfix_5#egg=bitcoin-etl
 chainside-btcpy==0.6.5
 base58==2.1.1
-pytest==6.2.5
+pytest==7.0.1
+cashaddress==1.0.6
