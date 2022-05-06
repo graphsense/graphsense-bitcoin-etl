@@ -8,4 +8,4 @@ chainside-btcpy==0.6.5
 base58==2.1.1
 pytest==7.0.1
 cashaddress==1.0.6
-simple-json==3.17.6 
+simplejson==3.17.6 
