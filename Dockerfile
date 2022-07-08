@@ -12,6 +12,7 @@ RUN apk --no-cache --update add bash python3 libstdc++ && \
     adduser --system --uid 10000 $USER && \
     apk --no-cache --update --virtual build-dependendencies add \
         build-base \
+        git \
         linux-headers \
         pcre-dev \
         python3-dev && \
