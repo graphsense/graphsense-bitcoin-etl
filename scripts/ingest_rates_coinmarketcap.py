@@ -142,6 +142,20 @@ def create_parser() -> ArgumentParser:
         "and force overwrite of existing rows",
     )
     parser.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        help="don't write new records to cassandra.",
+    )
+    parser.add_argument(
+        "--abort-on-gaps",
+        dest="abort_on_gaps",
+        action="store_true",
+        help=("ECB does not provide courses on weekends and holidays. "
+              "The default behavior of the script is to fill (interpolate). "
+              "With this flag the script aborts if gaps are present."),
+    )
+    parser.add_argument(
         "--fiat-currencies",
         dest="fiat_currencies",
         nargs="+",
@@ -221,6 +235,7 @@ def main() -> None:
         cluster.shutdown()
         raise SystemExit
 
+
     # fetch cryptocurrency exchange rates in USD
     cmc_rates = fetch_cmc_rates(start_date, end_date, args.cryptocurrency)
 
@@ -240,6 +255,15 @@ def main() -> None:
         merged_df = cmc_rates.merge(ecb_rate, on="date", how="left").merge(
             date_range, how="right"
         )
+        if args.abort_on_gaps and merged_df["fx_rate"].isnull().values.any():
+            print(f"Error: found missing values for currency {fiat_currency}, aborting import.")
+            print(merged_df[merged_df["fx_rate"].isnull()])
+            if not args.dry_run:
+                # in case of dry run let it run
+                # to see what would have been written to the db
+                cluster.shutdown()
+                raise SystemExit
+
         # fill gaps over weekends
         merged_df["fx_rate"].fillna(method="ffill", inplace=True)
         merged_df["fx_rate"].fillna(method="bfill", inplace=True)
@@ -256,9 +280,13 @@ def main() -> None:
     exchange_rates.drop(args.fiat_currencies, axis=1, inplace=True)
 
     # insert exchange rates into Cassandra table
-    insert_exchange_rates(session, args.keyspace, args.table, exchange_rates)
-    print(f"Inserted rates for {len(exchange_rates)} days: ", end="")
-    print(f"{exchange_rates.iloc[0].date} - {exchange_rates.iloc[-1].date}")
+    if not args.dry_run:
+        # insert_exchange_rates(session, args.keyspace, args.table, exchange_rates)
+        print(f"Inserted rates for {len(exchange_rates)} days: ", end="")
+        print(f"{exchange_rates.iloc[0].date} - {exchange_rates.iloc[-1].date}")
+    else:
+        print("Dry run: No data inserted. Would have inserted:")
+        print(exchange_rates)
 
     cluster.shutdown()
 
