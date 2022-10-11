@@ -163,6 +163,12 @@ def create_parser() -> ArgumentParser:
         "and force overwrite of existing rows",
     )
     parser.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        help="don't write new records to cassandra.",
+    )
+    parser.add_argument(
         "--fiat-currencies",
         dest="fiat_currencies",
         nargs="+",
@@ -240,9 +246,13 @@ def main() -> None:
     )
 
     # insert exchange rates into Cassandra table
-    insert_exchange_rates(session, args.keyspace, args.table, exchange_rates)
-    print(f"Inserted rates for {len(exchange_rates)} days: ", end="")
-    print(f"{exchange_rates.iloc[0].date} - {exchange_rates.iloc[-1].date}")
+    if not args.dry_run:
+        insert_exchange_rates(session, args.keyspace, args.table, exchange_rates)
+        print(f"Inserted rates for {len(exchange_rates)} days: ", end="")
+        print(f"{exchange_rates.iloc[0].date} - {exchange_rates.iloc[-1].date}")
+    else:
+        print("Dry run: No data inserted. Would have inserted:")
+        print(exchange_rates)
 
     cluster.shutdown()
 
