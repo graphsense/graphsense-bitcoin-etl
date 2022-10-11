@@ -153,7 +153,7 @@ def create_parser() -> ArgumentParser:
         action="store_true",
         help=("ECB does not provide courses on weekends and holidays. "
               "The default behavior of the script is to fill (interpolate). "
-              "With this flag the script aborts if gaps are present."),
+              "With this flag the script aborts if gaps are still present."),
     )
     parser.add_argument(
         "--fiat-currencies",
@@ -255,6 +255,10 @@ def main() -> None:
         merged_df = cmc_rates.merge(ecb_rate, on="date", how="left").merge(
             date_range, how="right"
         )
+        
+        # fill gaps over weekends
+        merged_df["fx_rate"].fillna(method="ffill", inplace=True)
+        # merged_df["fx_rate"].fillna(method="bfill", inplace=True)
         if args.abort_on_gaps and merged_df["fx_rate"].isnull().values.any():
             print(f"Error: found missing values for currency {fiat_currency}, aborting import.")
             print(merged_df[merged_df["fx_rate"].isnull()])
@@ -263,10 +267,6 @@ def main() -> None:
                 # to see what would have been written to the db
                 cluster.shutdown()
                 raise SystemExit
-
-        # fill gaps over weekends
-        merged_df["fx_rate"].fillna(method="ffill", inplace=True)
-        merged_df["fx_rate"].fillna(method="bfill", inplace=True)
         merged_df[fiat_currency] = merged_df["USD"] * merged_df["fx_rate"]
         merged_df = merged_df[["date", fiat_currency]]
         exchange_rates = exchange_rates.merge(merged_df, on="date")
