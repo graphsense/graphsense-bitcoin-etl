@@ -281,7 +281,7 @@ def main() -> None:
 
     # insert exchange rates into Cassandra table
     if not args.dry_run:
-        # insert_exchange_rates(session, args.keyspace, args.table, exchange_rates)
+        insert_exchange_rates(session, args.keyspace, args.table, exchange_rates)
         print(f"Inserted rates for {len(exchange_rates)} days: ", end="")
         print(f"{exchange_rates.iloc[0].date} - {exchange_rates.iloc[-1].date}")
     else:
