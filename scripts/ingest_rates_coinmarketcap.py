@@ -258,7 +258,7 @@ def main() -> None:
         
         # fill gaps over weekends
         merged_df["fx_rate"].fillna(method="ffill", inplace=True)
-        # merged_df["fx_rate"].fillna(method="bfill", inplace=True)
+        merged_df["fx_rate"].fillna(method="bfill", inplace=True)
         if args.abort_on_gaps and merged_df["fx_rate"].isnull().values.any():
             print(f"Error: found missing values for currency {fiat_currency}, aborting import.")
             print(merged_df[merged_df["fx_rate"].isnull()])
