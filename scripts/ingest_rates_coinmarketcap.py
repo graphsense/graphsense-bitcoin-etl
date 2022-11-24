@@ -258,7 +258,7 @@ def main() -> None:
         
         # fill gaps over weekends
         merged_df["fx_rate"].fillna(method="ffill", inplace=True)
-        # merged_df["fx_rate"].fillna(method="bfill", inplace=True)
+        merged_df["fx_rate"].fillna(method="bfill", inplace=True)
         if args.abort_on_gaps and merged_df["fx_rate"].isnull().values.any():
             print(f"Error: found missing values for currency {fiat_currency}, aborting import.")
             print(merged_df[merged_df["fx_rate"].isnull()])
@@ -281,7 +281,7 @@ def main() -> None:
 
     # insert exchange rates into Cassandra table
     if not args.dry_run:
-        # insert_exchange_rates(session, args.keyspace, args.table, exchange_rates)
+        insert_exchange_rates(session, args.keyspace, args.table, exchange_rates)
         print(f"Inserted rates for {len(exchange_rates)} days: ", end="")
         print(f"{exchange_rates.iloc[0].date} - {exchange_rates.iloc[-1].date}")
     else:
