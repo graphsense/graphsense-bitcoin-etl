@@ -56,7 +56,9 @@ By default, data until the **latest** block available from the Bitcoin Core
 client will be ingested.  To stop ingesting at an earlier block, use the
 `-e/--end_block` option (see `btc_cassandra_streaming.py -h`).
 
-## Exchange rates
+## Exchange rates (DEPRECATED)
+
+Ingesting exchange rates through this repo is deprecated. Please use the equivalent functionality in provided in the [graphsense-lib repository][graphsense-cli].
 
 For Bitcoin we use the [CoinDesk API][coindesk] to obtain exchange rates, see
 `scripts/ingest_rates_coindesk.py -h`
@@ -66,3 +68,4 @@ For Bitcoin we use the [CoinDesk API][coindesk] to obtain exchange rates, see
 [apache-cassandra]: http://cassandra.apache.org/download
 [coindesk]: https://www.coindesk.com/api
 [coinmarketcap]: https://coinmarketcap.com
+[graphsense-cli]: https://github.com/graphsense/graphsense-lib#exchange-rates
