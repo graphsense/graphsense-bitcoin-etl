@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import warnings
+
 from argparse import ArgumentParser
 from collections import OrderedDict
 from collections.abc import Iterable
@@ -668,6 +670,9 @@ def create_parser():
 
 
 def main() -> None:
+
+    warnings.warn("graphsense-bitcoin-etl is deprecated. Please use https://github.com/graphsense/graphsense-lib -> graphsense-cli ingest which provides the same functionality", DeprecationWarning)
+    
     parser = create_parser()
     args = parser.parse_args()
 
